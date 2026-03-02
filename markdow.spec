@@ -17,9 +17,15 @@ else:
     except NameError:
         _spec_dir = os.getcwd()
 
-# magika 数据目录（models + config），必须存在否则 exe 运行时会报错
-_magika_models = os.path.join(_spec_dir, '.venv', 'Lib', 'site-packages', 'magika', 'models')
-_magika_config = os.path.join(_spec_dir, '.venv', 'Lib', 'site-packages', 'magika', 'config')
+# magika 数据目录（models + config），必须存在否则运行时会报错
+# Windows: .venv/Lib/site-packages；Linux/macOS: .venv/lib/pythonX.Y/site-packages
+if sys.platform == 'win32':
+    _site_packages = os.path.join(_spec_dir, '.venv', 'Lib', 'site-packages')
+else:
+    _py = 'python%d.%d' % (sys.version_info.major, sys.version_info.minor)
+    _site_packages = os.path.join(_spec_dir, '.venv', 'lib', _py, 'site-packages')
+_magika_models = os.path.join(_site_packages, 'magika', 'models')
+_magika_config = os.path.join(_site_packages, 'magika', 'config')
 _magika_datas = []
 if os.path.isdir(_magika_models):
     for _root, _dirs, _files in os.walk(_magika_models):

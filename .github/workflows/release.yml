@@ -1,0 +1,99 @@
+# 在 Windows / Linux / macOS 上构建 markdow 命令行工具，并随 Tag 发布 Release
+# 用法：推送 tag 如 v1.0.0 → 触发构建 → 创建 Release 并附带三平台可执行文件
+
+name: Build CLI (Windows + Linux + macOS) and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            python: '3.12'
+            artifact_name: markdow-windows-amd64.exe
+            exe_path: dist/markdow.exe
+          - os: ubuntu-latest
+            python: '3.12'
+            artifact_name: markdow-linux-amd64
+            exe_path: dist/markdow
+          - os: macos-latest
+            python: '3.12'
+            artifact_name: markdow-darwin-arm64
+            exe_path: dist/markdow
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Create venv and install dependencies (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install pyinstaller
+          .venv/bin/pip install -e "packages/markitdown[docx,xls]"
+
+      - name: Create venv and install dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          python -m venv .venv
+          .venv\Scripts\pip install --upgrade pip
+          .venv\Scripts\pip install pyinstaller
+          .venv\Scripts\pip install -e "packages/markitdown[docx,xls]"
+
+      - name: Build (Unix)
+        if: matrix.os != 'windows-latest'
+        run: .venv/bin/pyinstaller markdow.spec
+
+      - name: Build (Windows)
+        if: matrix.os == 'windows-latest'
+        run: .venv\Scripts\pyinstaller.exe markdow.spec
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.exe_path }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: markdow-*
+          path: release-artifacts
+
+      - name: Rename to distinct filenames for Release
+        run: |
+          mkdir -p release
+          for dir in release-artifacts/markdow-*; do
+            name=$(basename "$dir")
+            f=$(find "$dir" -type f -print -quit)
+            [ -n "$f" ] && cp "$f" "release/$name"
+          done
+          chmod +x release/markdow-linux-amd64 release/markdow-darwin-arm64 2>/dev/null || true
+          ls -la release/
+
+      - name: Create Release and upload binaries
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
