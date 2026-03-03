@@ -24,8 +24,14 @@ LLM 图片识别（需 --llm-model 和 --llm-api-key 或环境变量）:
     阿里云:     qwen-vl-plus, qwen-vl-max
     Azure:      gpt-4o（配合 --llm-base-url）
     本地Ollama: llava（配合 --llm-base-url http://localhost:11434/v1）
+
+PDF + LLM 模式说明:
+  传入 --llm-model 时，PDF 会逐页渲染为图片交给视觉模型识别，
+  可完整理解页面布局、图表、图片等内容（需安装 pymupdf: pip install pymupdf）。
+  不传 --llm-model 时，仍使用 pdfminer/pdfplumber 纯文字提取。
 """
 import argparse
+import base64
 import os
 import sys
 from pathlib import Path
@@ -186,6 +192,16 @@ def main():
             sys.exit(1)
 
     try:
+        # PDF + LLM：逐页渲染为图片，交给视觉模型识别
+        if llm_client is not None and inp.suffix.lower() == ".pdf":
+            markdown_text = _convert_pdf_with_llm(
+                inp, llm_client, llm_model,
+                prompt=args.llm_prompt,
+            )
+            out.write_text(markdown_text, encoding="utf-8")
+            print(f"已生成: {out}")
+            return
+
         mk_kwargs = {"enable_plugins": args.use_plugins}
         if args.use_docintel:
             if not args.endpoint:
@@ -209,6 +225,62 @@ def main():
     except Exception as e:
         print(f"转换失败: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+def _convert_pdf_with_llm(pdf_path: Path, client, model: str, prompt: str | None = None) -> str:
+    """将 PDF 每页渲染为图片，逐页交给视觉 LLM 识别，返回完整 Markdown。"""
+    try:
+        import fitz  # pymupdf
+    except ImportError:
+        print(
+            "错误：PDF+LLM 模式需要安装 pymupdf。\n"
+            "请运行: pip install pymupdf",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if prompt is None or not prompt.strip():
+        prompt = (
+            "请将这一页PDF的内容完整转换为Markdown格式。"
+            "保留所有文字、表格结构、标题层级。"
+            "图片用一句话描述其内容。"
+            "只输出Markdown内容，不要额外解释。"
+        )
+
+    doc = fitz.open(str(pdf_path))
+    total = len(doc)
+    pages_md = []
+
+    for i, page in enumerate(doc):
+        print(f"  处理第 {i + 1}/{total} 页...", file=sys.stderr)
+        # 渲染为 PNG（2x 分辨率，保证清晰度）
+        mat = fitz.Matrix(2.0, 2.0)
+        pix = page.get_pixmap(matrix=mat)
+        img_bytes = pix.tobytes("png")
+        b64 = base64.b64encode(img_bytes).decode("utf-8")
+        data_uri = f"data:image/png;base64,{b64}"
+
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": data_uri}},
+                        ],
+                    }
+                ],
+            )
+            page_md = response.choices[0].message.content or ""
+        except Exception as e:
+            page_md = f"<!-- 第 {i + 1} 页识别失败: {e} -->"
+
+        pages_md.append(f"<!-- Page {i + 1} -->\n\n{page_md.strip()}")
+
+    doc.close()
+    return "\n\n---\n\n".join(pages_md)
 
 
 if __name__ == "__main__":

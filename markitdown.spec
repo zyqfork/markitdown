@@ -103,6 +103,8 @@ hidden_imports = [
     'openai.resources',
     'openai.resources.chat',
     'openai.resources.chat.completions',
+    # pymupdf (optional, for PDF page rendering with LLM)
+    'fitz',
 ]
 
 # ── Analysis ──────────────────────────────────────────────────────────────────

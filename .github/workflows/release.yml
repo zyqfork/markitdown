@@ -47,7 +47,7 @@ jobs:
           .venv/bin/pip install --upgrade pip
           .venv/bin/pip install pyinstaller
           .venv/bin/pip install -e "packages/markitdown[xlsx,xls,docx,pptx,pdf,outlook]"
-          .venv/bin/pip install openai
+          .venv/bin/pip install openai pymupdf
 
       - name: Create venv and install dependencies (Windows)
         if: matrix.os == 'windows-latest'
@@ -56,7 +56,7 @@ jobs:
           .venv\Scripts\pip install --upgrade pip
           .venv\Scripts\pip install pyinstaller
           .venv\Scripts\pip install -e "packages/markitdown[xlsx,xls,docx,pptx,pdf,outlook]"
-          .venv\Scripts\pip install openai
+          .venv\Scripts\pip install openai pymupdf
 
       - name: Build (Unix)
         if: matrix.os != 'windows-latest'
