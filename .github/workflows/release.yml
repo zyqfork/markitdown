@@ -16,16 +16,16 @@ jobs:
         include:
           - os: windows-latest
             python: '3.12'
-            artifact_name: markdow-windows-amd64.exe
-            exe_path: dist/markdow.exe
+            artifact_name: markitdown-windows-amd64.exe
+            exe_path: dist/markitdown.exe
           - os: ubuntu-latest
             python: '3.12'
-            artifact_name: markdow-linux-amd64
-            exe_path: dist/markdow
+            artifact_name: markitdown-linux-amd64
+            exe_path: dist/markitdown
           - os: macos-latest
             python: '3.12'
-            artifact_name: markdow-darwin-arm64
-            exe_path: dist/markdow
+            artifact_name: markitdown-darwin-arm64
+            exe_path: dist/markitdown
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -55,11 +55,11 @@ jobs:
 
       - name: Build (Unix)
         if: matrix.os != 'windows-latest'
-        run: .venv/bin/pyinstaller markdow.spec
+        run: .venv/bin/pyinstaller markitdown.spec
 
       - name: Build (Windows)
         if: matrix.os == 'windows-latest'
-        run: .venv\Scripts\pyinstaller.exe markdow.spec
+        run: .venv\Scripts\pyinstaller.exe markitdown.spec
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -76,18 +76,18 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: markdow-*
+          pattern: markitdown-*
           path: release-artifacts
 
       - name: Rename to distinct filenames for Release
         run: |
           mkdir -p release
-          for dir in release-artifacts/markdow-*; do
+          for dir in release-artifacts/markitdown-*; do
             name=$(basename "$dir")
             f=$(find "$dir" -type f -print -quit)
             [ -n "$f" ] && cp "$f" "release/$name"
           done
-          chmod +x release/markdow-linux-amd64 release/markdow-darwin-arm64 2>/dev/null || true
+          chmod +x release/markitdown-linux-amd64 release/markitdown-darwin-arm64 2>/dev/null || true
           ls -la release/
 
       - name: Create Release and upload binaries

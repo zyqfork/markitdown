@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-markdow.exe 入口：单文件转 Markdown（基于 Microsoft MarkItDown）。
+markitdown 命令行入口：单文件转 Markdown（基于 Microsoft MarkItDown）。
 
 用法:
-  markdow.exe <文件>             在当前目录生成同名 .md
-  markdow.exe <文件> -o out.md   指定输出路径
+  markitdown <文件>             在当前目录生成同名 .md
+  markitdown <文件> -o out.md   指定输出路径
 
 MarkItDown 支持的格式（需安装对应可选依赖）:
   文档: PDF, Word(.doc/.docx), PowerPoint(.ppt/.pptx), Excel(.xls/.xlsx)
@@ -21,7 +21,7 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser(
         description="将文件转为 Markdown，默认在当前目录输出同名 .md",
-        prog="markdow",
+        prog="markitdown",
         epilog=__doc__.split("MarkItDown 支持的格式")[-1].strip(),
     )
     parser.add_argument(
