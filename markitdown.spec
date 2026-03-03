@@ -55,6 +55,7 @@ print(f"[spec] magika datas collected: {len(_magika_datas)} files")
 
 # ── Hidden imports ────────────────────────────────────────────────────────────
 hidden_imports = [
+    # markitdown core
     'markitdown',
     'markitdown._markitdown',
     'markitdown.converters',
@@ -73,8 +74,30 @@ hidden_imports = [
     'markitdown.converters._outlook_msg_converter',
     'markitdown.converters._audio_converter',
     'markitdown.converters._markdownify',
+    # magika
     'magika',
     'magika.magika',
+    # xlsx
+    'openpyxl',
+    'openpyxl.styles',
+    'openpyxl.cell',
+    # xls
+    'xlrd',
+    # pdf
+    'pdfminer',
+    'pdfminer.high_level',
+    'pdfminer.layout',
+    'pdfplumber',
+    # docx
+    'mammoth',
+    'lxml',
+    'lxml.etree',
+    # pptx
+    'pptx',
+    # outlook
+    'olefile',
+    # pandas (used by xlsx/xls converters)
+    'pandas',
 ]
 
 # ── Analysis ──────────────────────────────────────────────────────────────────

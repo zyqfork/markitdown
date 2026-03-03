@@ -46,7 +46,7 @@ jobs:
           python -m venv .venv
           .venv/bin/pip install --upgrade pip
           .venv/bin/pip install pyinstaller
-          .venv/bin/pip install -e "packages/markitdown[docx,xls]"
+          .venv/bin/pip install -e "packages/markitdown[xlsx,xls,docx,pptx,pdf,outlook]"
 
       - name: Create venv and install dependencies (Windows)
         if: matrix.os == 'windows-latest'
@@ -54,7 +54,7 @@ jobs:
           python -m venv .venv
           .venv\Scripts\pip install --upgrade pip
           .venv\Scripts\pip install pyinstaller
-          .venv\Scripts\pip install -e "packages/markitdown[docx,xls]"
+          .venv\Scripts\pip install -e "packages/markitdown[xlsx,xls,docx,pptx,pdf,outlook]"
 
       - name: Build (Unix)
         if: matrix.os != 'windows-latest'
