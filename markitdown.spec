@@ -98,6 +98,11 @@ hidden_imports = [
     'olefile',
     # pandas (used by xlsx/xls converters)
     'pandas',
+    # openai (optional, for LLM image captioning)
+    'openai',
+    'openai.resources',
+    'openai.resources.chat',
+    'openai.resources.chat.completions',
 ]
 
 # ── Analysis ──────────────────────────────────────────────────────────────────
