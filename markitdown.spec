@@ -1,61 +1,59 @@
 # -*- mode: python ; coding: utf-8 -*-
-# 打包命令（在项目根目录）: pyinstaller markitdown.spec  → 生成 dist/markitdown[.exe]
-# 需先安装: pip install pyinstaller "packages/markitdown[docx,xls]"
+# 打包命令（在项目根目录，使用 venv 里的 pyinstaller）:
+#   .venv\Scripts\pyinstaller.exe markitdown.spec        （Windows）
+#   .venv/bin/pyinstaller markitdown.spec                （Linux / macOS）
 
 import os
 import sys
+import subprocess
 
 block_cipher = None
 
-# 项目根目录 = 含 markitdown.spec 的目录（请始终在项目根执行: pyinstaller markitdown.spec）
-_spec_file = os.path.join(os.getcwd(), 'markitdown.spec')
-if os.path.isfile(_spec_file):
-    _spec_dir = os.path.dirname(os.path.abspath(_spec_file))
-else:
-    try:
-        _spec_dir = os.path.dirname(os.path.abspath(SPECPATH))
-    except NameError:
-        _spec_dir = os.getcwd()
+# ── 定位 magika 包路径 ────────────────────────────────────────────────────────
+# 不依赖 spec 进程的 import，而是通过「当前 Python 可执行文件」问 venv 里的 Python
+# PyInstaller 执行 spec 时 sys.executable 就是 venv 里的 Python，最可靠
+_magika_pkg = subprocess.check_output(
+    [sys.executable, '-c', 'import magika, os; print(magika.__path__[0])'],
+    text=True
+).strip()
 
-# magika 数据目录（models + config），必须打包进 exe 否则运行时报 "model not found"
-# 优先从当前已安装的 magika 包路径收集（兼容 CI 与本地）
-_magika_datas = []
+print(f"[spec] magika package path: {_magika_pkg}")
 
-def _collect_magika_datas(from_dir, dest_prefix):
+_magika_models_src = os.path.join(_magika_pkg, 'models')
+_magika_config_src = os.path.join(_magika_pkg, 'config')
+
+assert os.path.isdir(_magika_models_src), f"magika models dir not found: {_magika_models_src}"
+assert os.path.isdir(_magika_config_src), f"magika config dir not found: {_magika_config_src}"
+
+# 检查 model.onnx 是否存在
+_onnx = os.path.join(_magika_models_src, 'standard_v3_3', 'model.onnx')
+assert os.path.isfile(_onnx), f"model.onnx not found: {_onnx}"
+print(f"[spec] model.onnx OK: {_onnx}")
+
+# ── 收集 magika 数据文件（models + config）──────────────────────────────────
+# PyInstaller datas 元组：(源文件完整路径, 目标目录路径)
+# 目标目录是相对于 _MEIPASS 的目录，不是文件路径
+def _walk_datas(src_dir, dest_prefix):
     out = []
-    if not os.path.isdir(from_dir):
-        return out
-    for _root, _dirs, _files in os.walk(from_dir):
-        for _f in _files:
-            _full = os.path.join(_root, _f)
-            _rel = os.path.relpath(_full, from_dir)
-            out.append((_full, os.path.join(dest_prefix, _rel.replace(os.sep, '/'))))
+    for root, dirs, files in os.walk(src_dir):
+        for f in files:
+            full = os.path.join(root, f)
+            # 该文件相对于 src_dir 的目录部分（不含文件名）
+            rel_dir = os.path.relpath(root, src_dir)
+            if rel_dir == '.':
+                dest_dir = dest_prefix
+            else:
+                dest_dir = os.path.join(dest_prefix, rel_dir).replace(os.sep, '/')
+            out.append((full, dest_dir))
     return out
 
-# 1) 从已 import 的 magika 包路径收集（CI/本地都可靠）
-try:
-    import magika
-    _magika_pkg = magika.__path__[0]
-    _magika_datas.extend(_collect_magika_datas(os.path.join(_magika_pkg, 'models'), 'magika/models'))
-    _magika_datas.extend(_collect_magika_datas(os.path.join(_magika_pkg, 'config'), 'magika/config'))
-except Exception:
-    pass
+_magika_datas = (
+    _walk_datas(_magika_models_src, 'magika/models') +
+    _walk_datas(_magika_config_src, 'magika/config')
+)
+print(f"[spec] magika datas collected: {len(_magika_datas)} files")
 
-# 2) 若未收集到，再从 .venv 的 site-packages 路径尝试
-if not _magika_datas:
-    if sys.platform == 'win32':
-        _site_packages = os.path.join(_spec_dir, '.venv', 'Lib', 'site-packages')
-    else:
-        _py = 'python%d.%d' % (sys.version_info.major, sys.version_info.minor)
-        _site_packages = os.path.join(_spec_dir, '.venv', 'lib', _py, 'site-packages')
-    _magika_datas.extend(_collect_magika_datas(os.path.join(_site_packages, 'magika', 'models'), 'magika/models'))
-    _magika_datas.extend(_collect_magika_datas(os.path.join(_site_packages, 'magika', 'config'), 'magika/config'))
-
-if not _magika_datas:
-    sys.stderr.write(
-        'WARNING: magika models/config not found. Run from project root with markitdown (and magika) installed.\n'
-    )
-
+# ── Hidden imports ────────────────────────────────────────────────────────────
 hidden_imports = [
     'markitdown',
     'markitdown._markitdown',
@@ -79,6 +77,7 @@ hidden_imports = [
     'magika.magika',
 ]
 
+# ── Analysis ──────────────────────────────────────────────────────────────────
 a = Analysis(
     ['markitdown_cli.py'],
     pathex=[],
