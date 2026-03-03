@@ -56,6 +56,50 @@ jobs:
           .venv\Scripts\pip install pyinstaller
           .venv\Scripts\pip install -e "packages/markitdown[docx,xls]"
 
+      - name: Ensure magika model (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          .venv/bin/python - << 'PY'
+          import os, urllib.request
+          import magika
+          pkg = magika.__path__[0]
+          model_dir = os.path.join(pkg, "models", "standard_v3_3")
+          os.makedirs(model_dir, exist_ok=True)
+          model_file = os.path.join(model_dir, "model.onnx")
+          config_file = os.path.join(model_dir, "config.min.json")
+          base = "https://github.com/google/magika/raw/main/assets/models/standard_v3_3"
+          if not os.path.isfile(model_file):
+              urllib.request.urlretrieve(f"{base}/model.onnx", model_file)
+              print("Downloaded model.onnx")
+          if not os.path.isfile(config_file):
+              urllib.request.urlretrieve(f"{base}/config.min.json", config_file)
+              print("Downloaded config.min.json")
+          assert os.path.isfile(model_file), "model.onnx missing"
+          print("magika model OK:", model_dir)
+          PY
+
+      - name: Ensure magika model (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          .venv\Scripts\python.exe -c "
+          import os, urllib.request
+          import magika
+          pkg = magika.__path__[0]
+          model_dir = os.path.join(pkg, 'models', 'standard_v3_3')
+          os.makedirs(model_dir, exist_ok=True)
+          model_file = os.path.join(model_dir, 'model.onnx')
+          config_file = os.path.join(model_dir, 'config.min.json')
+          base = 'https://github.com/google/magika/raw/main/assets/models/standard_v3_3'
+          if not os.path.isfile(model_file):
+              urllib.request.urlretrieve(base + '/model.onnx', model_file)
+              print('Downloaded model.onnx')
+          if not os.path.isfile(config_file):
+              urllib.request.urlretrieve(base + '/config.min.json', config_file)
+              print('Downloaded config.min.json')
+          assert os.path.isfile(model_file), 'model.onnx missing'
+          print('magika model OK', model_dir)
+          "
+
       - name: Build (Unix)
         if: matrix.os != 'windows-latest'
         run: .venv/bin/pyinstaller markitdown.spec
