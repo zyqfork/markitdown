@@ -1,3 +1,4 @@
+import math
 import sys
 from typing import BinaryIO, Any
 from ._html_converter import HtmlConverter
@@ -31,6 +32,25 @@ ACCEPTED_XLS_MIME_TYPE_PREFIXES = [
     "application/excel",
 ]
 ACCEPTED_XLS_FILE_EXTENSIONS = [".xls"]
+
+
+def _excel_float_format_for_html(x: float) -> str:
+    """
+    Format floats for DataFrame.to_html so whole numbers (e.g. phone numbers
+    stored as numeric in Excel) are not shown in scientific notation.
+    """
+    try:
+        xf = float(x)
+    except (TypeError, ValueError):
+        return str(x)
+    if math.isnan(xf):
+        return ""
+    r = round(xf)
+    # Treat as integer if close to an integer (covers Excel float storage)
+    if abs(xf - r) < 1e-9 * max(1.0, abs(xf)):
+        if abs(r) < 10**15:
+            return str(int(r))
+    return format(xf, ".12g")
 
 
 class XlsxConverter(DocumentConverter):
@@ -84,7 +104,9 @@ class XlsxConverter(DocumentConverter):
         md_content = ""
         for s in sheets:
             md_content += f"## {s}\n"
-            html_content = sheets[s].to_html(index=False)
+            html_content = sheets[s].to_html(
+                index=False, float_format=_excel_float_format_for_html
+            )
             md_content += (
                 self._html_converter.convert_string(
                     html_content, **kwargs
@@ -146,7 +168,9 @@ class XlsConverter(DocumentConverter):
         md_content = ""
         for s in sheets:
             md_content += f"## {s}\n"
-            html_content = sheets[s].to_html(index=False)
+            html_content = sheets[s].to_html(
+                index=False, float_format=_excel_float_format_for_html
+            )
             md_content += (
                 self._html_converter.convert_string(
                     html_content, **kwargs
